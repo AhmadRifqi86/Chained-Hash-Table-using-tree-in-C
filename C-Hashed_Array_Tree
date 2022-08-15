@@ -1,0 +1,599 @@
+#include<stdio.h>
+#include<stdlib.h>
+
+//run a test for tree del
+typedef struct ht_item ht_item;
+struct ht_item{
+	int key;
+	float dec;
+};
+
+typedef struct tree tree;
+struct tree{ //bisa diganti linked list, nanti bikin penyeimbang
+	ht_item item;
+	tree *kiri;
+	tree *kanan;
+};
+
+typedef struct node node; //ini ga butuh
+struct node{
+	ht_item item;
+	node *next;
+};
+
+typedef struct hashtable hashtable;  //tambah int node?
+struct hashtable{
+	tree** branch;
+	int size;
+	int count;
+};
+//func declaration
+
+tree* head_tree(ht_item item);
+tree* insert_tree(tree* kapsul,ht_item baru);
+void display_tree(tree* root);
+tree* smallest(tree* node);
+tree* del_node(tree* root,int key);  //terkadang masih error
+void del_tree(tree* node);
+void deltreeptr(tree** root);
+tree* search_tree(tree* node,int key);
+
+ht_item new_item();
+void display_item(ht_item item);
+
+hashtable* new_table();
+tree** make_branch(hashtable* table);
+void insert_table(hashtable* table,ht_item);
+void insert_fromusers(hashtable* table);
+void del_a_data(hashtable* table);
+void display_table(hashtable* table);
+void search_table(hashtable* table);
+hashtable* del_branch(hashtable* table);
+void deltableptr(hashtable** table);
+void del_table(hashtable* table);
+void del_void(hashtable** table);
+void br_count(hashtable* table);
+
+int hashing(int key,int size);
+int inp_check();
+void instruksi();
+int ch2int();
+float ch2dec();
+//void writefile(tree* root);
+void recursive(FILE* fp,tree* root);
+void makefile(hashtable* table);
+hashtable* readfile();
+void tree2arr(ht_item arr[],tree* root,int loc);
+tree* arr2tree(ht_item arr[],int start,int end);
+tree* balance(tree* root);
+void allbalance(hashtable* table);
+//void flatten(tree* root);
+//void linearize(hashtable* table);
+//nanti lanjut bikin front end nya
+int main(){
+	int i,kunci,stop,pil;
+//	float uji;
+	hashtable* table=NULL;
+//	ht_item buff;
+	do{
+		instruksi();
+		display_table(table);
+		pil=inp_check();
+		if(pil==1){
+			printf("Insert Data\n");
+			if(table==NULL){
+				table=new_table();
+			}
+			do{
+				//buff=new_item();
+				insert_fromusers(table);
+				printf("\n0 to stop: ");
+				scanf("%d",&stop);
+			}while(stop!=0);
+			allbalance(table);
+			//display_table(table);
+		}
+		else if(pil==2){
+			printf("Delete a data\n");
+			do{
+				del_a_data(table);
+				printf("\n0 to stop: ");
+				scanf("%d",&stop);
+			}while(stop!=0);
+			allbalance(table);
+			//display_table(table);
+		}
+		else if(pil==3){
+			printf("Search a Data\n");
+			do{
+				search_table(table);
+				printf("\n0 to stop: ");
+				scanf("%d",&stop);
+			}while(stop!=0);
+		//	display_table(table);
+		}
+		else if(pil==4){
+			printf("Free table\n");
+			makefile(table);
+			deltableptr(&table);
+			break;
+		}
+		else if(pil==5){
+			printf("Test File\n");
+		 	table=readfile();
+			display_table(table);
+			continue;
+		}
+		else{
+			printf("Invalid Choice\n");
+			break;
+		}
+		//allbalance(table);
+	}while(pil!=0);
+
+	return 0;
+}
+
+int hashing(int key,int size){
+	return key%size;
+}
+
+tree* head_tree(ht_item item){
+	tree* anyar;
+	anyar=(tree*)malloc(sizeof(tree));
+	anyar->item=item;
+	anyar->kanan=NULL;
+	anyar->kiri=NULL;
+	return anyar;
+}
+
+tree* insert_tree(tree* kapsul,ht_item baru){ //kalo pointer gamau, item dijadikan var
+	if(kapsul==NULL){
+		return head_tree(baru);
+	}
+	if(baru.key<kapsul->item.key){
+		kapsul->kiri=insert_tree(kapsul->kiri,baru);
+	}
+	else{
+		kapsul->kanan=insert_tree(kapsul->kanan,baru);
+	}
+	return kapsul;
+}
+
+void display_tree(tree* root){
+	if(root!=NULL){
+		display_tree(root->kiri);
+		display_item(root->item);
+		display_tree(root->kanan);
+	}
+	else{
+		return;
+	}
+}
+
+tree* smallest(tree* node){
+	tree* cur=node;
+	while(cur->kiri!=NULL){
+		cur=cur->kiri;
+	}
+	return cur;
+}
+
+tree* del_node(tree* root,int key){ //float dec yang dihapus berasal dari user
+	if(root==NULL){
+		//return root;
+		return NULL;
+	}
+	if(key<root->item.key){
+		printf("CP 1\n");
+		root->kiri=del_node(root->kiri,key);
+		//return root;
+	}
+	else if(key>root->item.key){
+		printf("CP 2\n");
+		root->kanan=del_node(root->kanan,key);
+		//return root;
+	}
+	else{
+		//node without children
+		if(root->kiri==NULL&&root->kanan==NULL){
+			printf("CP 3\n");
+			free(root);
+			root=NULL;
+		}
+		//node with no left child,kalau root adalah nilai terkecil
+		else if(root->kiri==NULL){//root->kiri==NULL&&root->kanan!=NULL
+			printf("CP 4\n");
+			tree* tmp=root->kanan;
+		//	display_item(root->item);
+		//	root=NULL;
+			free(root);
+			printf("CP 4 fr\n");
+			return tmp;
+		}
+		//node with no right children,kalau root adalah nilai terbesar
+		else if(root->kanan==NULL){//root->kiri!=NULL&&root->kanan==NULL
+			printf("CP 5\n");
+			tree* tmp=root->kiri;
+		//	display_item(root->item);
+		//	root=NULL;
+			free(root);
+			printf("CP 5 Fr\n");
+			return tmp;	
+		}
+		//node with two children
+		else{
+			printf("CP 6\n");
+			tree* temp=smallest(root->kanan);
+			root->item=temp->item;
+			root->kanan=del_node(root->kanan,temp->item.key); //temp->item->key
+			//printf("CP 6 ljt\n");
+		}
+	}
+	return root;
+}
+
+void del_tree(tree* node){  //menghapus seluruh branch,masih perlu di flag, ini dipake
+//	tree* node=root;
+	if(node==NULL){
+		return;
+	}	
+	del_tree(node->kiri);
+	printf("oke 1\n");
+	del_tree(node->kanan);
+	printf("oke 2\n");
+	free(node);
+//	return node;
+}
+
+void deltreeptr(tree** node){ //ini juga dipake
+	del_tree(*node);
+	*node=NULL;
+}
+
+ht_item new_item(){//input struct item
+//	ht_item* item=(ht_item*)malloc(sizeof(ht_item));
+	ht_item item;
+	printf("Masukkan Key Integer: ");
+	item.key=ch2int();
+	//scanf("%d",&item.key);
+	printf("Masukkan Float dec Value: ");
+	item.dec=ch2dec();
+	//scanf("%f",&item.dec);
+	return item;
+}
+//fungsi display masih perlu dibenerin
+void display_item(ht_item item){
+	printf("Int=%d <--------> Float=%.2f\n",item.key,item.dec);
+//	printf("\t");
+}
+
+hashtable* new_table(){ //membuat table baru
+	int size,i;
+	printf("Masukkan ukuran hash table: ");
+	scanf("%d",&size);
+	while(size<1){
+		printf("Masukkan ukuran hash table: ");
+		scanf("%d",&size);
+	}
+	hashtable* table=(hashtable*)malloc(sizeof(hashtable));
+	table->size=size;
+	table->count=0;
+	table->branch=(tree**)malloc(table->size*sizeof(tree*)); //membuat array of tree
+	for(i=0;i<table->size;i++){
+		table->branch[i]=NULL;
+	}
+	return table;
+}
+
+tree** make_branch(hashtable* table){ //membuat array of tree
+	int i;
+	tree** cabang=(tree**)calloc(table->size,sizeof(tree*));
+	for(i=0;i<table->size;i++){
+		cabang[i]=NULL;
+	}
+	return cabang;
+}
+
+void insert_fromusers(hashtable* table){//databaru dan insert_table bisa digabung? //apa disini ya?
+	ht_item item=new_item();
+	insert_table(table,item);
+	return;
+}
+
+void insert_table(hashtable* table,ht_item item){//databaru dan insert_table bisa digabung? //apa disini ya?
+	int index=hashing(item.key,table->size);
+	if(table->branch[index]==NULL){
+		table->branch[index]=head_tree(item);
+		table->count++;
+		//table->branch[index]=balance(table->branch[index]);
+		return;
+	}
+	else{//fungsi search dan ganti??
+		tree* root=search_tree(table->branch[index],item.key);
+		if(root!=NULL){//kalau ada key yg sama, nilai dec diganti
+			root->item=item;
+			//table->branch[index]=balance(table->branch[index]);
+			//table->branch[index]=insert_tree(,item);
+			return;
+		}
+		else{
+			table->branch[index]=insert_tree(table->branch[index],item);
+			//table->branch[index]=balance(table->branch[index]);
+			return;
+		}		
+	}
+	
+}
+
+void del_a_data(hashtable* table){ //kalau isinya lebih dari 2 dia mau
+	int kunci,index;
+	printf("Masukkan kunci yang dibuang: ");
+	scanf("%d",&kunci);
+	index=hashing(kunci,table->size);
+	table->branch[index]=del_node(table->branch[index],kunci);
+}
+
+void display_table(hashtable* table){
+	if(table==NULL){
+	//	printf("Empty Table\n");
+		return;
+	}
+	int i;
+	br_count(table);
+	printf("Occupied = %d/%d\n",table->count,table->size);
+	for(i=0;i<table->size;i++){
+		printf("Index: %d\n",i);
+		display_tree(table->branch[i]);
+		printf("\n"); //nanti dicek lagi
+	}
+}
+
+tree* search_tree(tree* node,int key){  //search element in tree
+	tree* root=node;
+	if(root!=NULL){
+		if(key<root->item.key){ //kalau lebih kecil,cari di kiri
+			root=search_tree(root->kiri,key);
+			return root;
+		}
+		else if(key>root->item.key){ //kalau lebih besar, cari di kanan
+			root=search_tree(root->kanan,key);
+			return root;
+		}
+		else{ //if(key==root->item.key){ //kalau ketemu
+			return root;
+		}
+	}
+	else{//not found
+		return NULL;
+	}
+}
+
+void search_table(hashtable* table){
+	int cari;
+	printf("Int to search: ");
+	scanf("%d",&cari);
+	int index=hashing(cari,table->size);
+	tree* root=table->branch[index];
+//	display_tree(root);
+	root=search_tree(root,cari);
+	if(root==NULL){
+		printf("%d Not found\n",cari);
+		return;
+	}
+	display_item(root->item);//bisa dilanjut untuk ganti isi data
+	
+	return;	
+}
+
+hashtable* del_branch(hashtable* table){
+	int kunci,index;
+	printf("Masukkan branch yang dibuang: ");
+	scanf("%d",&kunci);
+	index=hashing(kunci,table->size);
+	deltreeptr(&table->branch[index]);
+//	del_tree(table->branch[index]);
+	table->count--;
+	return table;
+}
+
+void del_void(hashtable** table){  //
+	int kunci,index;
+	printf("Masukkan branch yang dibuang: ");
+	scanf("%d",&kunci);
+	index=hashing(kunci,(*table)->size);
+	del_tree((*table)->branch[index]);
+//	(*table)->count--;
+//	return table;
+}
+
+void del_table(hashtable* table){ //de-allocate array of tree
+	int i;
+	for(i=0;i<table->size;i++){
+		deltreeptr(&table->branch[i]);
+	}
+	display_tree(table->branch[0]);
+	free(table->branch);
+}
+
+void deltableptr(hashtable** table){ //destroy the table
+	del_table(*table);
+	*table=NULL;
+//	printf("Sini\n");
+}
+
+int inp_check(){
+	int pil;
+	printf("Pilihan: ");
+	do{
+		//scanf("%d",&pil);
+		pil=ch2int();
+	}while(pil<0||pil>5);
+	return pil;
+}
+
+void br_count(hashtable* table){ //counting occupied index in table
+	int i,count=0;
+	for(i=0;i<table->size;i++){
+		if(table->branch[i]!=NULL){
+			count++;
+		}
+	}
+	table->count=count;
+}
+
+void instruksi(){
+//	system("CLS");
+	printf("<=============HASH TABLE==============>");
+	printf("\n>1. Insert Data\n>2. Delete Data\n>3. Search Data\n>4. Free Table\n>5.Test File\n");
+}
+
+int ch2int(){  //parse string to integer
+	char input[10];
+	int mrk=1,num=0,i=0;
+	//printf("Enter Integer: ");
+	scanf("%s",&input);
+	if(input[0]=='-'){
+		mrk=-1;
+		i=1;
+	}
+	while(input[i]!='\0'){
+		if(input[i]>='0'&&input[i]<='9'){
+		//	printf("Converting...\n");
+			num=num*10+(input[i]-48);
+		//	printf("Check:%d\n",num);
+		}
+		i++;
+	}
+	num=num*mrk;
+
+	return num;
+}
+
+float ch2dec(){    //parse string to float
+	char input[10];
+	float res=0,sign=1.0;
+	int dot=0,i=0,d=0;
+	//printf("Enter Float: ");
+	scanf("%s",&input);
+	if(input[0]=='-'){
+		i=1;
+		sign= -1;
+	}
+	for(dot=0;input[i]!='\0';i++){
+		if(input[i]=='.'){
+			dot=1;
+			continue;
+		}
+		d=input[i]-48;
+		if(d>=0&&d<=9){
+			if(dot==1){
+				sign=sign/10.0f;
+			}
+			res=res*10.0f+(float)d;
+		}
+	}
+	return res*sign;
+}
+
+void recursive(FILE* fp, tree* root){ //push tree to file
+	ht_item buff;
+	if(root!=NULL){
+		recursive(fp,root->kiri);
+		buff=root->item;
+		fwrite(&buff,sizeof(ht_item),1,fp); //buffer write dan readfile harus sama tipenya
+		recursive(fp,root->kanan);
+	}
+}
+
+
+
+void makefile(hashtable* table){  //
+	FILE *fp;
+	fp=fopen("Hashed Array Tree.bin","wb");
+	int i;
+	for(i=0;i<table->size;i++){
+		recursive(fp,table->branch[i]);
+	}
+	fclose(fp);
+}
+
+hashtable* readfile(){
+	hashtable* fromfile=new_table();
+	FILE* fp;
+	fp=fopen("Hashed Array Tree.bin","rb");
+	ht_item buff;
+	if(fp==NULL){
+		printf("Read error\n");
+		return;
+	}
+	while(fread(&buff,sizeof(ht_item),1,fp)){
+		insert_table(fromfile,buff);
+	}
+	fclose(fp);
+	return fromfile;
+}
+
+int treecount(tree* root){
+	if(root==NULL){
+		return 0;
+	}
+	else{
+		return 1+treecount(root->kiri)+treecount(root->kanan);
+	}
+}
+
+int append_arr(tree* root,ht_item *arr,int i){ //optional
+	printf("Append\n");
+	if(root==NULL){
+		return i;
+	}
+	
+	if(root->kiri!=NULL){
+		i=append_arr(root->kiri,arr,i);
+	}
+	arr[i]=root->item;
+	i++;
+	if(root->kanan!=NULL){
+		i=append_arr(root->kanan,arr,i);
+	}
+	return i;
+}
+
+tree* arr2tree(ht_item arr[],int start,int end){  //optional
+	if(start>end){
+		return NULL;
+	}
+	int mid=(start+end)/2;
+	tree* root=head_tree(arr[mid]);
+	
+	root->kiri=arr2tree(arr,start,mid-1);
+	root->kanan=arr2tree(arr,mid+1,end);
+	
+	return root;
+}
+
+tree* balance(tree* root){    //optional
+	int size=treecount(root);
+	printf("Masuk Tree Size=%d\n",size); 
+	ht_item *arr;
+	arr=(ht_item*)malloc(size*sizeof(ht_item));
+//	tree2arr(arr,root,loc);
+	int buff=append_arr(root,arr,0);
+	int i;
+	for(i=0;i<size;i++){
+		display_item(arr[i]); //ga nampilin apa apa
+	}
+	tree* anyar=arr2tree(arr,0,size-1);
+	return anyar;
+}
+
+void allbalance(hashtable* table){ //optional
+	int i;
+	tree* tmp=NULL;
+	for(i=0;i<table->size;i++){
+		tmp=balance(table->branch[i]);
+		deltreeptr(&(table->branch[i]));  
+		table->branch[i]=tmp;
+	}
+}
